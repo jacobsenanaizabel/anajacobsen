@@ -31,10 +31,9 @@ jobs:
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code
 
-      - name: Run Claude Code & Open PR
+      - name: Run Claude Code
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
@@ -57,19 +56,57 @@ jobs:
           2. Tests: if the project has a test suite, write failing tests BEFORE changing behavior. This project currently has none, so do not invent a test framework; follow the definition of done in \`CLAUDE.md\`.
           3. Minimalist Implementation: Implement the simplest, cleanest change, strictly adhering to existing project patterns. Avoid over-engineering.
           4. Verification: Run \`npm run lint\` and \`npm run build\`. Both must pass with zero errors.
-          5. Git & Pull Request:
-             - Create atomic, well-structured commits following Conventional Commits (e.g., \`test: ...\`, \`feat: ...\`, \`fix: ...\`) on branch \`${BRANCH_NAME}\`.
-             - Push the branch to origin.
-             - Open a Pull Request targeting \`master\` referencing \`#${ISSUE_NUMBER}\` (e.g., \`Closes #${ISSUE_NUMBER}\`).
-             - Leave the Pull Request open for human review. Do NOT merge or close it." \
-          --allowedTools "Edit,Write,Read,Glob,Grep,Bash(git:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(npm:*),Bash(npx:*)" \
+          5. Git:
+             - Create atomic, well-structured commits following Conventional Commits (e.g., \`feat: ...\`, \`fix: ...\`, \`docs: ...\`) on the current branch \`${BRANCH_NAME}\`.
+             - Do NOT push and do NOT open a Pull Request. The workflow does that after you finish." \
+          --allowedTools "Edit,Write,Read,Glob,Grep,Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(npm:*),Bash(npx:*)" \
           --max-turns 35
 
-          # Fallback check: notify on the issue if no PR was opened
-          PR_URL=$(gh pr list --head "$BRANCH_NAME" --json url --jq '.[0].url')
+      # Pushing and opening the PR happen here, outside Claude, so any failure
+      # stops the job with a visible error instead of being swallowed.
+      - name: Push branch & open PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          BASE_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          BRANCH_NAME="claude/issue-${ISSUE_NUMBER}"
 
-          if [ -n "$PR_URL" ]; then
-            gh issue comment "$ISSUE_NUMBER" --body "Pull Request opened for review: ${PR_URL}"
-          else
-            gh issue comment "$ISSUE_NUMBER" --body "Claude Code finished running on branch \`${BRANCH_NAME}\`, but no Pull Request was created. Please check the workflow logs."
+          COMMITS=$(git rev-list --count "origin/${BASE_BRANCH}..HEAD")
+          if [ "$COMMITS" = "0" ]; then
+            gh issue comment "$ISSUE_NUMBER" --body "Claude Code finished but made no commits, so there is nothing to open a Pull Request for. Please check the workflow logs."
+            exit 1
           fi
+
+          # The bot owns this branch: overwrite results from earlier runs
+          git push --force origin "$BRANCH_NAME"
+
+          PR_URL=$(gh pr list --head "$BRANCH_NAME" --state open --json url --jq '.[0].url')
+          if [ -z "$PR_URL" ]; then
+            {
+              echo "Closes #${ISSUE_NUMBER}"
+              echo
+              echo "Automated change by Claude Code."
+              echo
+              echo "## Commits"
+              git log --format='- %s' "origin/${BASE_BRANCH}..HEAD"
+            } > pr-body.md
+
+            if ! PR_URL=$(gh pr create --base "$BASE_BRANCH" --head "$BRANCH_NAME" --title "$ISSUE_TITLE" --body-file pr-body.md 2>&1); then
+              echo "::error::gh pr create failed: ${PR_URL}"
+              {
+                echo "Branch \`${BRANCH_NAME}\` was pushed, but the Pull Request could not be created:"
+                echo
+                echo '```'
+                echo "$PR_URL"
+                echo '```'
+                echo
+                echo "If it says GitHub Actions is not permitted to create pull requests, enable it in Settings > Actions > General > Workflow permissions."
+              } > fail-comment.md
+              gh issue comment "$ISSUE_NUMBER" --body-file fail-comment.md
+              exit 1
+            fi
+          fi
+
+          gh issue comment "$ISSUE_NUMBER" --body "Pull Request opened for review: ${PR_URL}"
