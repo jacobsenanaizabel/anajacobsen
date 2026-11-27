@@ -21,7 +21,7 @@ const MobileNav = () => {
     <div className="sm:hidden">
       <button
         type="button"
-        className="ml-1 mr-1 h-8 w-8 rounded py-1"
+        className="mr-1 ml-1 h-8 w-8 rounded-sm py-1"
         aria-label="Toggle Menu"
         onClick={onToggleNav}
       >
@@ -39,14 +39,14 @@ const MobileNav = () => {
         </svg>
       </button>
       <div
-        className={`fixed left-0 top-0 z-10 h-full w-full transform bg-gray-200 opacity-95 duration-300 ease-in-out dark:bg-gray-800 ${
+        className={`fixed top-0 left-0 z-10 h-full w-full bg-gray-200 opacity-95 duration-300 ease-in-out dark:bg-gray-800 ${
           navShow ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         <div className="flex justify-end">
           <button
             type="button"
-            className="mr-5 mt-11 h-8 w-8 rounded"
+            className="mt-11 mr-5 h-8 w-8 rounded-sm"
             aria-label="Toggle Menu"
             onClick={onToggleNav}
           >
