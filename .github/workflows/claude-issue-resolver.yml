@@ -22,10 +22,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: pnpm install
+        run: npm ci
 
       - name: Install Claude Code CLI
         run: npm install -g @anthropic-ai/claude-code
@@ -53,15 +54,15 @@ jobs:
 
           Follow this strict workflow:
           1. Context & Architecture: Read \`CLAUDE.md\` and \`ARCHITECTURE.md\` (if present) first to understand project conventions, structure, and constraints.
-          2. Test-Driven Development (TDD): Write failing unit/integration tests BEFORE implementing any new code or modifying behavior. Run the test suite to confirm the tests fail as expected.
-          3. Minimalist Implementation: Implement the simplest, cleanest code required to make the tests pass, strictly adhering to SOLID principles and existing project patterns. Avoid over-engineering.
-          4. Verification: Run the full test suite, linter, and type-checker to ensure everything passes with zero regressions.
+          2. Tests: if the project has a test suite, write failing tests BEFORE changing behavior. This project currently has none, so do not invent a test framework; follow the definition of done in \`CLAUDE.md\`.
+          3. Minimalist Implementation: Implement the simplest, cleanest change, strictly adhering to existing project patterns. Avoid over-engineering.
+          4. Verification: Run \`npm run lint\` and \`npm run build\`. Both must pass with zero errors.
           5. Git & Pull Request:
              - Create atomic, well-structured commits following Conventional Commits (e.g., \`test: ...\`, \`feat: ...\`, \`fix: ...\`) on branch \`${BRANCH_NAME}\`.
              - Push the branch to origin.
-             - Open a Pull Request targeting \`main\` referencing \`#${ISSUE_NUMBER}\` (e.g., \`Closes #${ISSUE_NUMBER}\`).
+             - Open a Pull Request targeting \`master\` referencing \`#${ISSUE_NUMBER}\` (e.g., \`Closes #${ISSUE_NUMBER}\`).
              - Leave the Pull Request open for human review. Do NOT merge or close it." \
-          --allowedTools "Edit,Write,Read,Glob,Grep,Bash(git:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(pnpm:*),Bash(npm:*)" \
+          --allowedTools "Edit,Write,Read,Glob,Grep,Bash(git:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(npm:*),Bash(npx:*)" \
           --max-turns 35
 
           # Fallback check: notify on the issue if no PR was opened
