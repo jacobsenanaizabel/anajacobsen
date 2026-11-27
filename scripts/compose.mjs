@@ -1,7 +1,7 @@
-const fs = require('fs')
-const path = require('path')
-const inquirer = require('inquirer')
-const dedent = require('dedent')
+import fs from 'fs'
+import path from 'path'
+import inquirer from 'inquirer'
+import dedent from 'dedent'
 
 const root = process.cwd()
 
@@ -62,7 +62,7 @@ inquirer
     {
       name: 'extension',
       message: 'Choose post extension:',
-      type: 'list',
+      type: 'select',
       choices: ['mdx', 'md'],
     },
     {
@@ -79,7 +79,7 @@ inquirer
     {
       name: 'draft',
       message: 'Set post as draft?',
-      type: 'list',
+      type: 'select',
       choices: ['yes', 'no'],
     },
     {
@@ -90,7 +90,7 @@ inquirer
     {
       name: 'layout',
       message: 'Select layout',
-      type: 'list',
+      type: 'select',
       choices: getLayouts,
     },
     {

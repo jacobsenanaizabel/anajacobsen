@@ -1,0 +1,74 @@
+name: Claude Code Issue Solver
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  solve-issue:
+    if: github.event.label.name == 'claude'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run Claude Code & Open PR
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          BRANCH_NAME="claude/issue-${ISSUE_NUMBER}"
+
+          git config user.name "claude-bot"
+          git config user.email "claude-bot@users.noreply.github.com"
+          git checkout -b "$BRANCH_NAME"
+
+          claude -p "You are a Senior Software Engineer with extensive industry experience, focused on writing minimalist, clean, simple, and testable code grounded in SOLID principles.
+
+          You are tasked with resolving GitHub Issue #${ISSUE_NUMBER}:
+          Title: ${ISSUE_TITLE}
+          Description:
+          ${ISSUE_BODY}
+
+          Follow this strict workflow:
+          1. Context & Architecture: Read \`CLAUDE.md\` and \`ARCHITECTURE.md\` (if present) first to understand project conventions, structure, and constraints.
+          2. Test-Driven Development (TDD): Write failing unit/integration tests BEFORE implementing any new code or modifying behavior. Run the test suite to confirm the tests fail as expected.
+          3. Minimalist Implementation: Implement the simplest, cleanest code required to make the tests pass, strictly adhering to SOLID principles and existing project patterns. Avoid over-engineering.
+          4. Verification: Run the full test suite, linter, and type-checker to ensure everything passes with zero regressions.
+          5. Git & Pull Request:
+             - Create atomic, well-structured commits following Conventional Commits (e.g., \`test: ...\`, \`feat: ...\`, \`fix: ...\`) on branch \`${BRANCH_NAME}\`.
+             - Push the branch to origin.
+             - Open a Pull Request targeting \`main\` referencing \`#${ISSUE_NUMBER}\` (e.g., \`Closes #${ISSUE_NUMBER}\`).
+             - Leave the Pull Request open for human review. Do NOT merge or close it." \
+          --allowedTools "Edit,Write,Read,Glob,Grep,Bash(git:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(pnpm:*),Bash(npm:*)" \
+          --max-turns 35
+
+          # Fallback check: notify on the issue if no PR was opened
+          PR_URL=$(gh pr list --head "$BRANCH_NAME" --json url --jq '.[0].url')
+
+          if [ -n "$PR_URL" ]; then
+            gh issue comment "$ISSUE_NUMBER" --body "Pull Request opened for review: ${PR_URL}"
+          else
+            gh issue comment "$ISSUE_NUMBER" --body "Claude Code finished running on branch \`${BRANCH_NAME}\`, but no Pull Request was created. Please check the workflow logs."
+          fi
