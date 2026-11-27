@@ -21,8 +21,8 @@ export default function Home({ posts }) {
     <>
       <PageSEO title={siteMetadata.title} description={siteMetadata.description} />
       <div className="divide-y divide-gray-200 dark:divide-gray-700">
-        <div className="space-y-2 pt-6 pb-8 md:space-y-5">
-          <div className="flex flex-col	items-center justify-between">
+        <div className="space-y-2 pb-8 pt-6 md:space-y-5">
+          <div className="flex flex-col items-center justify-between">
             <Logo />
           </div>
           <p className="text-lg leading-7 text-rose-900 dark:text-gray-400">

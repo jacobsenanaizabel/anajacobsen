@@ -45,8 +45,8 @@ app.prepare().then(() => {
       .watch(program.args, { usePolling: Boolean(program.polling) })
       .on(program.event, async (filePathContext, eventContext = defaultWatchEvent) => {
         // Emit changes via socketio
+        // components/ClientReload.js re-fetches getStaticProps when it receives this event
         io.sockets.emit('reload', filePathContext)
-        app.server.hotReloader.send('building')
 
         if (program.command) {
           // Use spawn here so that we can pipe stdio from the command without buffering
@@ -80,8 +80,6 @@ app.prepare().then(() => {
             return e
           }
         }
-
-        app.server.hotReloader.send('reloadPage')
       })
   }
 
@@ -102,8 +100,7 @@ app.prepare().then(() => {
     msg && console.log(color ? chalk[color](msg) : msg)
 
     // reload the nextjs app
-    app.server.hotReloader.send('building')
-    app.server.hotReloader.send('reloadPage')
+    io.sockets.emit('reload', req.originalUrl)
     res.end('Reload initiated')
   })
 
